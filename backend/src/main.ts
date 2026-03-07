@@ -5,7 +5,14 @@ import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  
+
+  app.enableCors({
+    origin: process.env.FRONTEND_URL || true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+  });
+
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,
     forbidNonWhitelisted: true,
@@ -13,7 +20,7 @@ async function bootstrap() {
   }));
 
   const config = new DocumentBuilder()
-    .setTitle('EduSpark ✨ | Interactive API Portal')
+    .setTitle('EduSpark | Interactive API Portal')
     .setDescription('Explore the EduSpark Backend ecosystem. This portal provides comprehensive documentation for Authentication, Course Management, Student Progress, and more.')
     .setVersion('1.0')
     .addBearerAuth()
