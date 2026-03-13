@@ -80,67 +80,65 @@ export default function CoursesPage() {
   const [loading, setLoading] = useState(true);
   const [gradeGroups, setGradeGroups] = useState<GradeGroup[]>([]);
   const gradeMap = Object.fromEntries(
-  gradeGroups.map((g) => [g.grade_group_id, g.name])
-);
+    gradeGroups.map((g) => [g.grade_group_id, g.name])
+  );
 
   const filtered =
-  selectedGroup === "All"
-    ? courses
-    : courses.filter(
-    (c) => gradeMap[c.grade_group_id] === selectedGroup
-    );
+    selectedGroup === "All"
+      ? courses
+      : courses.filter((c) => gradeMap[c.grade_group_id] === selectedGroup);
   const ageGroups = ["All", ...gradeGroups.map((g) => g.name)];
 
   useEffect(() => {
-  const fetchData = async () => {
-    try {
-      const [coursesRes, lessonsRes, gradeGroupsRes] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/courses`),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/lessons`),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/grade-groups`)
-      ]);
+    const fetchData = async () => {
+      try {
+        const [coursesRes, lessonsRes, gradeGroupsRes] = await Promise.all([
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/courses`),
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/lessons`),
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/grade-groups`)
+        ]);
 
-      const coursesData = await coursesRes.json();
-      const lessonsData = await lessonsRes.json();
-      const gradeGroupsData = await gradeGroupsRes.json();
+        const coursesData = await coursesRes.json();
+        const lessonsData = await lessonsRes.json();
+        const gradeGroupsData = await gradeGroupsRes.json();
 
-      setGradeGroups(gradeGroupsData);
+        setGradeGroups(gradeGroupsData);
 
-    const lessonStatsMap: Record<
-      string,
-      { count: number; totalPoints: number }
-    > = {};
+        const lessonStatsMap: Record<
+          string,
+          { count: number; totalPoints: number }
+        > = {};
 
-    lessonsData.forEach((lesson: any) => {
-      if (!lessonStatsMap[lesson.course_id]) {
-        lessonStatsMap[lesson.course_id] = { count: 0, totalPoints: 0 };
+        lessonsData.forEach((lesson: any) => {
+          if (!lessonStatsMap[lesson.course_id]) {
+            lessonStatsMap[lesson.course_id] = { count: 0, totalPoints: 0 };
+          }
+
+          lessonStatsMap[lesson.course_id].count += 1;
+          lessonStatsMap[lesson.course_id].totalPoints +=
+            lesson.points_reward || 0;
+        });
+
+        const formattedCourses: Course[] = coursesData.map((c: any) => ({
+          course_id: c.course_id,
+          grade_group_id: c.grade_group_id,
+          title: c.title,
+          description: c.description,
+          lessons: lessonStatsMap[c.course_id]?.count || 0,
+          totalPoints: lessonStatsMap[c.course_id]?.totalPoints || 0,
+          created_at: c.created_at,
+        }));
+
+        setCourses(formattedCourses);
+      } catch (err) {
+        console.error("Failed to fetch data", err);
+      } finally {
+        setLoading(false);
       }
+    };
 
-      lessonStatsMap[lesson.course_id].count += 1;
-      lessonStatsMap[lesson.course_id].totalPoints +=
-        lesson.points_reward || 0;
-    });
-
-      const formattedCourses: Course[] = coursesData.map((c: any) => ({
-        course_id: c.course_id,
-        grade_group_id: c.grade_group_id,
-        title: c.title,
-        description: c.description,
-        lessons: lessonStatsMap[c.course_id]?.count || 0,
-        totalPoints: lessonStatsMap[c.course_id]?.totalPoints || 0,
-        created_at: c.created_at,
-      }));
-
-      setCourses(formattedCourses);
-    } catch (err) {
-      console.error("Failed to fetch data", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  fetchData();
-}, []);
+    fetchData();
+  }, []);
 
   return (
     <>
@@ -149,7 +147,9 @@ export default function CoursesPage() {
       <main style={{ background: "#ffffff", minHeight: "100vh", fontFamily: "Poppins, Nunito, sans-serif" }}>
 
         <section style={{
-          backgroundImage: "linear-gradient(90deg, #131b46, #1b2561)",
+          backgroundImage: "linear-gradient(90deg, rgba(27,37,97,0.10)), url('/images/study2.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
           paddingTop: "120px",
           paddingBottom: "80px",
           textAlign: "center",
