@@ -22,7 +22,6 @@ import {
   faClock,
   faChevronRight,
 } from "@fortawesome/free-solid-svg-icons";
-import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
 type Course = {
   course_id: string;
@@ -79,6 +78,7 @@ export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [gradeGroups, setGradeGroups] = useState<GradeGroup[]>([]);
+  
   const gradeMap = Object.fromEntries(
     gradeGroups.map((g) => [g.grade_group_id, g.name])
   );
@@ -87,6 +87,7 @@ export default function CoursesPage() {
     selectedGroup === "All"
       ? courses
       : courses.filter((c) => gradeMap[c.grade_group_id] === selectedGroup);
+      
   const ageGroups = ["All", ...gradeGroups.map((g) => g.name)];
 
   useEffect(() => {
@@ -287,7 +288,6 @@ export default function CoursesPage() {
                   </div>
 
                   <div>
-                    
                     <h3 style={{
                       fontSize: "1.05rem", fontWeight: 800,
                       color: "#ffffff", marginBottom: "8px", lineHeight: 1.3,
