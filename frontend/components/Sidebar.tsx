@@ -75,7 +75,7 @@ const adminMain: NavItem[] = [
   {
     id: "quizzes",
     label: "Quizzes",
-    icon: LuFileText, // or choose a better quiz icon
+    icon: LuFileText, 
     path: `${adminRoute}/quizzes`,
   },
   {
