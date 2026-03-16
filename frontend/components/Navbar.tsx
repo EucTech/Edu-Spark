@@ -169,7 +169,7 @@ export default function Navbar() {
                 fontFamily: "'Nunito', sans-serif",
                 fontWeight: 700,
                 fontSize:   "0.95rem",
-                color:      "#3d4566",
+                color:      scrolled ? "#3d4566" : "#ffffff",
                 textDecoration: "none",
               }}
             >
