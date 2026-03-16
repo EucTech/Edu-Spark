@@ -124,6 +124,12 @@ export default function CourseDetailPage() {
   const [loading, setLoading] = useState(true);
   const [gradeGroups, setGradeGroups] = useState<GradeGroup[]>([]);
   const estimatedDurationWeeks = Math.ceil(lessons.length / 4);
+  const [enrolling, setEnrolling] = useState(false);
+  const [showGuardianModal, setShowGuardianModal] = useState(false);
+  const [children, setChildren] = useState<any[]>([]);
+  const [selectedChildId, setSelectedChildId] = useState("");
+
+
 
 
   const totalPoints = lessons.reduce(
@@ -131,11 +137,86 @@ export default function CourseDetailPage() {
     0
   );
 
-  const estimatedLessonsWeeks = Math.ceil(totalPoints / 100);
+  const totalHours = (lessons.length * 0.5).toFixed(0);
 
   const gradeMap = Object.fromEntries(
     gradeGroups.map((g) => [g.grade_group_id, g.name])
   );
+
+  const enrollCourse = async (studentId?: string) => {
+    try {
+      setEnrolling(true);
+
+      const token = localStorage.getItem("token");
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/courses/${courseId}/enroll`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: studentId ? JSON.stringify({ student_id: studentId }) : undefined,
+        }
+      );
+
+      if (res.status === 409) {
+        alert("Already enrolled in this course.");
+        return;
+      }
+
+      if (!res.ok) throw new Error();
+
+      alert("Enrollment successful 🎉");
+      setShowGuardianModal(false);
+    } catch {
+      alert("Failed to enroll.");
+    } finally {
+      setEnrolling(false);
+    }
+  };
+
+  const fetchGuardianChildren = async () => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/students`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      const data = await res.json();
+      setChildren(data);
+    } catch {
+      alert("Failed to load children");
+    }
+  };
+
+
+  const handleEnroll = async () => {
+    const storedUser = localStorage.getItem("user");
+
+    if (!storedUser) {
+      window.location.href = "/login";
+      return;
+    }
+
+    const user = JSON.parse(storedUser);
+
+    if (user.role === "student") {
+      enrollCourse();
+      return;
+    }
+
+    if (user.role === "guardian") {
+      fetchGuardianChildren();
+      setShowGuardianModal(true);
+      return;
+    }
+  };
 
 
 useEffect(() => {
@@ -395,7 +476,7 @@ useEffect(() => {
                         background: "#f0fdf4",
                         border: "1px solid #bbf7d0",
                         transition: "all 0.2s",
-                        cursor: "pointer",
+                        cursor: "default",
                       }}
                       onMouseEnter={(e) => {
                         (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
@@ -405,7 +486,6 @@ useEffect(() => {
                         (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
                         (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
                       }}
-                      onClick={() => window.location.href = `/courses/${courseId}/${lesson.lesson_id}`}
                       >
                         <div style={{
                           width: "40px", height: "40px", borderRadius: "50%",
@@ -439,7 +519,7 @@ useEffect(() => {
                               display: "flex", alignItems: "center", gap: "4px"
                             }}>
                               <FontAwesomeIcon icon={faClock} style={{ width: "12px", height: "12px" }} />
-                              {estimatedLessonsWeeks} weeks
+                              {totalHours} Hour(s)
                             </span>
                             <span style={{
                               fontSize: "0.85rem", color: "#64748b",
@@ -550,18 +630,24 @@ useEffect(() => {
                   </div>
 
                   {/* Enroll Button */}
-                  <button style={{
-                    width: "100%", padding: "14px", borderRadius: "50px",
-                    backgroundImage: "radial-gradient(circle at 60% 40%, #3749a9, #1b2561)",
-                    color: "#ffffff", fontSize: "1rem", fontWeight: 700,
-                    border: "none", cursor: "pointer",
-                    marginTop: "24px",
-                    transition: "filter 0.2s",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.filter = "brightness(1.1)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.filter = "brightness(1)")}
+                  <button
+                    onClick={handleEnroll}
+                    disabled={enrolling}
+                    style={{
+                      width: "100%",
+                      padding: "14px",
+                      borderRadius: "50px",
+                      backgroundImage: "radial-gradient(circle at 60% 40%, #3749a9, #1b2561)",
+                      color: "#ffffff",
+                      fontSize: "1rem",
+                      fontWeight: 700,
+                      border: "none",
+                      cursor: "pointer",
+                      marginTop: "24px",
+                      opacity: enrolling ? 0.7 : 1,
+                    }}
                   >
-                    Enroll in Course
+                    {enrolling ? "Enrolling..." : "Enroll in Course"}
                   </button>
                 </div>
 
@@ -572,6 +658,200 @@ useEffect(() => {
           </div>
         </section>
 
+          {showGuardianModal && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(15,21,53,0.45)",
+                backdropFilter: "blur(4px)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 2000,
+                padding: "20px",
+              }}
+            >
+              <div
+                style={{
+                  background: "#ffffff",
+                  borderRadius: "20px",
+                  width: "100%",
+                  maxWidth: "480px",
+                  padding: "28px",
+                  boxShadow: "0 20px 60px rgba(19,27,70,0.15)",
+                  animation: "fadeIn 0.2s ease",
+                }}
+              >
+                {/* Header */}
+                <div style={{ marginBottom: "20px" }}>
+                  <h3
+                    style={{
+                      fontSize: "1.25rem",
+                      fontWeight: 800,
+                      color: "#0f1535",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    Select Child to Enroll
+                  </h3>
+                  <p style={{ fontSize: "0.9rem", color: "#7b82a8" }}>
+                    This course is designed for <strong>{gradeName}</strong>.  
+                    Students outside this range may still enroll if they want a challenge.
+                  </p>
+                </div>
+
+                {/* Child List */}
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "12px",
+                    maxHeight: "260px",
+                    overflowY: "auto",
+                    marginBottom: "24px",
+                  }}
+                >
+                  {children.map((child) => {
+                    const isRecommended =
+                      child.grade_group?.name === gradeName;
+
+                    return (
+                      <div
+                        key={child.student_id}
+                        onClick={() => setSelectedChildId(child.student_id)}
+                        style={{
+                          padding: "14px 16px",
+                          borderRadius: "14px",
+                          border:
+                            selectedChildId === child.student_id
+                              ? "2px solid #3749a9"
+                              : "1px solid #e4e6f0",
+                          background:
+                            selectedChildId === child.student_id
+                              ? "#eef1ff"
+                              : "#ffffff",
+                          cursor: "pointer",
+                          transition: "all 0.2s ease",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}
+                        >
+                          <div>
+                            <div
+                              style={{
+                                fontWeight: 700,
+                                color: "#0f1535",
+                              }}
+                            >
+                              {child.full_name}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "0.8rem",
+                                color: "#7b82a8",
+                              }}
+                            >
+                              {child.grade_group?.name || "Unknown Grade"}
+                            </div>
+                          </div>
+
+                          {isRecommended ? (
+                            <span
+                              style={{
+                                fontSize: "0.7rem",
+                                padding: "4px 10px",
+                                borderRadius: "20px",
+                                background: "#dcfce7",
+                                color: "#16a34a",
+                                fontWeight: 600,
+                              }}
+                            >
+                              Recommended
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                fontSize: "0.7rem",
+                                padding: "4px 10px",
+                                borderRadius: "20px",
+                                background: "#fef3c7",
+                                color: "#b45309",
+                                fontWeight: 600,
+                              }}
+                            >
+                              Outside Range
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Buttons */}
+                <div style={{ display: "flex", gap: "12px" }}>
+                  <button
+                    onClick={() => setShowGuardianModal(false)}
+                    style={{
+                      flex: 1,
+                      padding: "10px",
+                      borderRadius: "10px",
+                      border: "1px solid #e4e6f0",
+                      background: "#ffffff",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    disabled={!selectedChildId || enrolling}
+                    onClick={() => {
+                      const selectedChild = children.find(
+                        (c) => c.student_id === selectedChildId
+                      );
+
+                      const isRecommended =
+                        selectedChild?.grade_group?.name === gradeName;
+
+                      if (!isRecommended) {
+                        const confirmProceed = window.confirm(
+                          "This course is designed for " +
+                            gradeName +
+                            ". This student is outside the recommended range. Do you still want to enroll?"
+                        );
+
+                        if (!confirmProceed) return;
+                      }
+
+                      enrollCourse(selectedChildId);
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "10px",
+                      borderRadius: "10px",
+                      border: "none",
+                      background: "#3749a9",
+                      color: "#ffffff",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      opacity:
+                        !selectedChildId || enrolling ? 0.6 : 1,
+                    }}
+                  >
+                    {enrolling ? "Enrolling..." : "Enroll"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
       </main>
 
       <Footer />
