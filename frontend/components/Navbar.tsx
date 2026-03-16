@@ -59,7 +59,7 @@ export default function Navbar() {
             fontFamily: "'Playfair Display', serif",
             fontWeight: 900,
             fontSize:   "1.25rem",
-            color:      "#3749a9",
+            color:      scrolled ? "#3749a9" : "#ffffff",
             letterSpacing: "-0.01em",
           }}>
             EduSpark
@@ -77,12 +77,12 @@ export default function Navbar() {
                 fontFamily:  "'Nunito', sans-serif",
                 fontWeight:  700,
                 fontSize:    "0.9rem",
-                color:       "#3d4566",
+                color:       scrolled ? "#3d4566" : "#ffffff",
                 textDecoration: "none",
                 transition:  "color 0.2s",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "#3749a9")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "#3d4566")}
+              onMouseEnter={(e) => (e.currentTarget.style.color = scrolled ? "#3749a9" : "#ffffff")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = scrolled ? "#3d4566" : "#ffffff")}
             >
               {link.label}
             </Link>
@@ -122,7 +122,7 @@ export default function Navbar() {
               display:    "block",
               width:      "24px",
               height:     "2px",
-              background: "#131b46",
+              background: scrolled ? "#131b46" : "#ffffff",
               borderRadius: "2px",
               transition: "all 0.3s ease",
               transform:
@@ -154,7 +154,7 @@ export default function Navbar() {
                 fontFamily: "'Nunito', sans-serif",
                 fontWeight: 700,
                 fontSize:   "0.95rem",
-                color:      "#3d4566",
+                color:      scrolled ? "#3d4566" : "#ffffff",
                 textDecoration: "none",
               }}
             >
