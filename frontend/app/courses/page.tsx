@@ -123,7 +123,7 @@ export default function CoursesPage() {
 
           lessonStatsMap[lesson.course_id].count += 1;
           lessonStatsMap[lesson.course_id].totalPoints +=
-            lesson.points_reward || 0;
+          Number(lesson.points_reward) || 0;
         });
 
         const formattedCourses: Course[] = coursesData.map((c: any) => ({

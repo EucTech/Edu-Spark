@@ -121,6 +121,15 @@ export default function LoginPage() {
 
     console.log("Student logged in:", data);
 
+    const token = data.access_token;
+    const payload = JSON.parse(atob(token.split(".")[1]));
+
+    // stroing all data
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(payload));
+    localStorage.setItem("role", payload.role);
+    localStorage.setItem("email", payload.email);
+
     // redirecting to the student dashboard after login successful
     window.location.href = "/student-dashboard";
 
