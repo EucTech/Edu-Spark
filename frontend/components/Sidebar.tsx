@@ -19,6 +19,7 @@ import {
   LuBell,
   LuFileText,
   LuUser,
+  LuBook,
 } from "react-icons/lu";
 import { RiVerifiedBadgeFill } from "react-icons/ri";
 import { toast } from "sonner";
@@ -115,11 +116,17 @@ const guardianMain: NavItem[] = [
     icon: LuTrendingUp,
     path: `${guardianRoute}/progress`,
   },
+   {
+    id: "courses",
+    label: "Find Courses",
+    icon: LuBook,
+    path: `../courses`,
+  },
   {
-    id: "messages",
-    label: "Messages",
-    icon: LuMessageSquare,
-    path: `${guardianRoute}/messages`,
+    id: "leaderboard",
+    label: "Leaderboard",
+    icon: LuTrophy,
+    path: `${guardianRoute}/leaderboard`,
   },
 ];
 
@@ -251,6 +258,15 @@ export default function Sidebar({ open, onClose, collapsed }: SidebarProps) {
     if (isMobile) onClose();
   };
   const user = userProfile;
+  
+    const handleLogout = () => {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+
+      setProfileOpen(false);
+
+      router.replace("/login"); 
+    };
 
   const NavBtn = ({
     item,
@@ -263,6 +279,7 @@ export default function Sidebar({ open, onClose, collapsed }: SidebarProps) {
       ? pathname === item.path
       : pathname === item.path || pathname.startsWith(item.path + "/");
     const Icon = item.icon;
+
 
     return (
       <button
@@ -398,10 +415,7 @@ export default function Sidebar({ open, onClose, collapsed }: SidebarProps) {
             >
               <div className="h-px bg-[#e4e6f0] my-1 mx-3" />
               <button
-                onClick={() => {
-                  setProfileOpen(false);
-                  router.push("/");
-                }}
+                onClick={handleLogout}
                 className="w-full text-left flex items-center gap-2.5 px-3.5 py-2 text-[12px] font-medium text-red-500 hover:bg-red-50 transition-colors"
               >
                 <span className="text-sm leading-none">⏻</span> Sign Out

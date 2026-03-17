@@ -11,6 +11,14 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [autoCollapsed, setAutoCollapsed] = useState(false);
 
   useEffect(() => {
+    const token = localStorage.getItem("token");
+    const role = localStorage.getItem("role");
+
+    if (!token || role !== "student") {
+      localStorage.clear();
+      window.location.href = "/login";
+    }
+    
     const handleResize = () => {
       const width = window.innerWidth;
       const mobile = width < 768;

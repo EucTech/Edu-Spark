@@ -19,6 +19,7 @@ import { LuUsers, LuHeart, LuBaby } from "react-icons/lu";
 export default function GuardianDashboardHome() {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
+  const [performance, setPerformance] = useState<any[]>([]);
 
   const calculateAge = (dob?: string) => {
     if (!dob) return 0;
@@ -54,8 +55,39 @@ export default function GuardianDashboardHome() {
     }
   };
 
+  const fetchPerformance = async () => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/guardians/students/performance`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (!res.ok) throw new Error();
+
+      const data = await res.json();
+
+      console.log("Guardian Performance Data:", data); 
+
+      setPerformance(data || []);
+    } catch (err) {
+      console.error("Performance fetch failed", err);
+    }
+  };
+
+  const topPerformer =
+  performance.length > 0
+    ? performance.reduce((prev, current) =>
+        current.total_points > prev.total_points ? current : prev
+      )
+    : null;
+
   useEffect(() => {
     fetchStudents();
+    fetchPerformance();
   }, []);
 
   if (loading) {
@@ -90,7 +122,7 @@ export default function GuardianDashboardHome() {
         {/* Stats Cards */}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
 
-          {/* Total Children */}
+          {/* Total Childrenfor this guardian */}
           <StatCard
             icon={LuUsers}
             label="Total Children"
@@ -108,7 +140,7 @@ export default function GuardianDashboardHome() {
             text="text-rose-700"
           />
 
-          {/* Below 6 Years */}
+          {/* Children Below 6 Years */}
           <StatCard
             icon={LuBaby}
             label="Below 6 Years"
@@ -128,7 +160,7 @@ export default function GuardianDashboardHome() {
 
         </div>
 
-        {/* Age Distribution Chart */}
+        {/*  Chart showing children age distribution */}
         <div className="bg-white rounded-2xl border border-[#e4e6f0] shadow-sm p-8">
           <h2 className="text-lg font-semibold text-[#0f1535] mb-6">
             Children Age Overview
@@ -157,21 +189,48 @@ export default function GuardianDashboardHome() {
             </div>
           )}
         </div>
-
-        {/* Performance Section  */}
-        <div className="bg-white rounded-2xl border border-[#e4e6f0] shadow-sm p-8">
-          <h2 className="text-lg font-semibold text-[#0f1535] mb-3">
-            Performance Overview
-          </h2>
-          <p className="text-sm text-[#7b82a8]">
-            Performance graph will appear here once student performance endpoint
-            for guardians is available.
-          </p>
-
-          <div className="mt-6 h-56 bg-[#f7f8fc] rounded-xl flex items-center justify-center text-[#9ba3c7] text-sm">
-            Performance graph coming soon...
+        {topPerformer && (
+          <div className="mb-6 p-4 bg-[#f7f8fc] rounded-xl">
+            <p className="text-sm text-[#7b82a8]">Top Performer</p>
+            <p className="text-lg font-bold text-[#0f1535]">
+              {topPerformer.display_name} — {topPerformer.total_points} points
+            </p>
           </div>
-        </div>
+        )}
+
+        {/* children Performance Section */}
+          <div className="bg-white rounded-2xl border border-[#e4e6f0] shadow-sm p-8">
+            <h2 className="text-lg font-semibold text-[#0f1535] mb-6">
+              Performance Overview
+            </h2>
+
+            {performance.length === 0 ? (
+              <div className="h-56 flex items-center justify-center text-[#9ba3c7] text-sm">
+                No performance data available yet.
+              </div>
+            ) : (
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={performance.map((s) => ({
+                      name: s.display_name,
+                      points: Number(s.total_points) || 0,
+                    }))}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eef1f7" />
+                    <XAxis dataKey="name" stroke="#7b82a8" />
+                    <YAxis stroke="#7b82a8" />
+                    <Tooltip />
+                    <Bar
+                      dataKey="points"
+                      fill="#3749a9"
+                      radius={[6, 6, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
 
       </div>
     </div>

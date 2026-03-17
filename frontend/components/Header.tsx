@@ -69,7 +69,10 @@ export default function Header({ onMenuClick, sidebarWidth }: HeaderProps) {
     const user = JSON.parse(storedUser);
 
     const firstName =
-      user?.full_name?.split(" ")[0] || "";
+      user?.full_name?.split(" ")[0] ||
+      user?.profile?.firstName ||
+      user?.email ||
+      "";
       setUserInfo({
         firstName,
         role: user?.role || "",
