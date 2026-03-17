@@ -3,6 +3,8 @@ import { PointsService } from './points.service';
 import {
   PointHistoryResponseDto,
   PointTotalResponseDto,
+  LeaderboardResponseDto,
+  WeeklyPointsResponseDto,
 } from './dto/points-response.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
@@ -10,6 +12,7 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiResponse,
+  ApiQuery,
 } from '@nestjs/swagger';
 
 @ApiTags('points')
@@ -50,12 +53,31 @@ export class PointsController {
   @ApiOperation({
     summary: 'Get the student leaderboard (Admin/Global)',
   })
+  @ApiQuery({
+    name: 'timeframe',
+    required: false,
+    description: 'Filter timeframe. Pass "weekly" to get only this week\'s points.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Return student leaderboard by points sorted descending.',
+    type: [LeaderboardResponseDto],
   })
   getLeaderboard(@Query('timeframe') timeframe?: string) {
     return this.pointsService.getLeaderboard(timeframe);
+  }
+
+  @Get('all-student/weekly')
+  @ApiOperation({
+    summary: 'Get weekly aggregated points for all students (Admin/Global)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Return array mapping week start dates to points earned across all students.',
+    type: [WeeklyPointsResponseDto],
+  })
+  getAllStudentsWeeklyPoints() {
+    return this.pointsService.getAllStudentsWeeklyPoints();
   }
 
   @Get('student/:studentId/weekly')
@@ -65,6 +87,7 @@ export class PointsController {
   @ApiResponse({
     status: 200,
     description: 'Return array of objects mapping week start dates to points earned.',
+    type: [WeeklyPointsResponseDto],
   })
   getStudentWeeklyPoints(@Param('studentId') studentId: string) {
     return this.pointsService.getStudentWeeklyPoints(studentId);
