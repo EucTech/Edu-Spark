@@ -18,6 +18,8 @@ export const metadata: Metadata = {
   title: "EduSpark — Ignite Young Minds",
   description:
     "EduSpark is an interactive e-learning platform for primary school students in Rwanda. Curriculum-aligned video lessons, gamification, and real-time guardian progress tracking.",
+  manifest: "/manifest.json",
+  themeColor: "#3749a9",
   keywords: [
     "EduSpark",
     "e-learning",

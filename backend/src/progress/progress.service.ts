@@ -117,6 +117,16 @@ export class ProgressService {
       throw new NotFoundException('Student profile not found');
     }
 
+    // Check if quiz exists
+    const quiz = await (this.prisma.quiz as any).findUnique({
+      where: { quiz_id: dto.quiz_id },
+      include: { lesson: true },
+    });
+
+    if (!quiz) {
+      throw new NotFoundException('Quiz not found');
+    }
+
     const attempt = await (this.prisma.studentQuizAttempt as any).create({
       data: {
         student_id: studentId,
@@ -130,7 +140,7 @@ export class ProgressService {
     await this.pointsService.addPoints(
       studentId,
       dto.score,
-      `Quiz Result: ${attempt.quiz.lesson.title}`,
+      `Quiz Result: ${quiz.lesson.title}`,
     );
 
     // Notify student of their quiz score
@@ -138,7 +148,7 @@ export class ProgressService {
       student_id: studentId,
       type: 'quiz_score',
       title: 'Quiz Completed!',
-      message: `You scored ${Number(dto.score).toFixed(0)} points on the quiz for "${attempt.quiz.lesson.title}". Keep it up!`,
+      message: `You scored ${Number(dto.score).toFixed(0)} points on the quiz for "${quiz.lesson.title}". Keep it up!`,
     });
 
     return attempt;
