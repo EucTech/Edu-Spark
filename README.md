@@ -72,6 +72,14 @@ The backend runs on `http://localhost:4001/api` (local) or `https://edu-spark-pr
 - **API:** https://edu-spark-production.up.railway.app/api
 - **Swagger Docs:** https://edu-spark-production.up.railway.app/docs
 
+## Testing Credentials
+
+| Role     | Email / Username              | Password   |
+|----------|-------------------------------|------------|
+| Admin    | euccreative+50@gmail.com      | $Uche123   |
+| Guardian | h.okereke@alustudent.com      | eduspark   |
+| Student  | favvy                         | eduspark   |
+
 ## Demo
 
 [Watch the demo on Loom](https://www.loom.com/share/7cc245cb8e83472fac5c8e26bfb00345)
