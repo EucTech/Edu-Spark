@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, {useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { useSearchParams } from "next/navigation";
 import {
   faPlus,
   faTrash,
@@ -34,8 +35,12 @@ export default function CreateQuizPage() {
   const lessonId = params?.lessonId as string;
 
   // Edit mode state
-  const [isEditMode] = useState(false);
-  const [quizId] = useState<string | null>(null);
+
+  const searchParams = useSearchParams();
+  const editMode = searchParams.get("edit") === "true";
+  const quizId = searchParams.get("quizId");
+  const [loadingQuiz, setLoadingQuiz] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [questions, setQuestions] = useState<Question[]>([
     {
@@ -124,6 +129,50 @@ export default function CreateQuizPage() {
     );
   };
 
+useEffect(() => {
+  const fetchQuizForEdit = async () => {
+    if (!editMode || !quizId) return;
+
+    try {
+      setLoadingQuiz(true);
+
+      const token = localStorage.getItem("token");
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/quizzes/${quizId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (!res.ok) throw new Error();
+
+      const data = await res.json();
+
+      setQuestions(
+        data.questions.map((q: any) => ({
+          question_text: q.question_text,
+          points: Number(q.points),
+          options: q.options.map((o: any) => ({
+            option_text: o.option_text,
+            is_correct: o.is_correct,
+          })),
+        }))
+      );
+
+      setIsTimed(data.is_timed);
+      setQuizTimer(data.time_limit_seconds);
+
+    } catch {
+      toast.error("Failed to load quiz for editing");
+    } finally {
+      setLoadingQuiz(false);
+    }
+  };
+
+  fetchQuizForEdit();
+}, [editMode, quizId]);
+
   const handleSubmit = async () => {
     if (uploading) return;
 
@@ -167,12 +216,12 @@ export default function CreateQuizPage() {
     try {
       const token = localStorage.getItem("token");
 
-      const url = isEditMode
-        ? `${process.env.NEXT_PUBLIC_API_URL}/quizzes/${quizId}`
-        : `${process.env.NEXT_PUBLIC_API_URL}/quizzes`;
+      const url = editMode
+  ? `${process.env.NEXT_PUBLIC_API_URL}/quizzes/${quizId}`
+  : `${process.env.NEXT_PUBLIC_API_URL}/quizzes`;
 
-      const method = isEditMode ? "PATCH" : "POST";
-
+      const method = editMode ? "PATCH" : "POST";
+      
       const res = await fetch(url, {
         method,
         headers: {
@@ -187,7 +236,7 @@ export default function CreateQuizPage() {
       }
 
       toast.success(
-        isEditMode
+        editMode
           ? "Quiz updated successfully"
           : "Quiz created successfully"
       );
@@ -202,13 +251,70 @@ export default function CreateQuizPage() {
     }
   };
 
-  return (
-    <div className="max-w-4xl mx-auto p-8 space-y-8">
-      <div className="flex justify-between items-center flex-wrap gap-4">
-        <h1 className="text-2xl font-bold text-[#0f1535]">
-          {isEditMode ? "Edit Quiz" : "Create Quiz"}
-        </h1>
+  const handleDeleteQuiz = async () => {
+  if (!editMode || !quizId) return;
 
+  const confirmDelete = window.confirm(
+    "Are you sure you want to delete this quiz? This action cannot be undone."
+  );
+
+  if (!confirmDelete) return;
+
+  try {
+    setDeleting(true);
+
+    const token = localStorage.getItem("token");
+
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/quizzes/${quizId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!res.ok) throw new Error();
+
+    toast.success("Quiz deleted successfully");
+
+    router.push("/admin-dashboard/lessons");
+
+  } catch {
+    toast.error("Failed to delete quiz");
+  } finally {
+    setDeleting(false);
+  }
+};
+
+  return (
+  <div className="max-w-4xl mx-auto p-8 space-y-8">
+    
+    {/* Header */}
+    <div className="space-y-3">
+      <h1 className="text-2xl font-bold text-[#0f1535]">
+        {editMode ? "Edit Quiz" : "Create Quiz"}
+      </h1>
+
+      {editMode && loadingQuiz && (
+        <div className="flex items-center gap-3 bg-[#f4f6ff] px-4 py-3 rounded-xl w-fit">
+          <FontAwesomeIcon
+            icon={faSpinner}
+            spin
+            className="text-[#3749a9]"
+          />
+          <span className="text-sm font-medium text-[#3749a9]">
+            Preparing quiz for editing...
+          </span>
+        </div>
+      )}
+    </div>
+
+    {/* Stopping everything else while loading */}
+    {editMode && loadingQuiz ? null : (
+      <>
+        {/* Controls */}
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2 bg-[#f4f6ff] px-4 py-2 rounded-xl">
             <FontAwesomeIcon icon={faStar} className="text-[#3749a9]" />
@@ -243,13 +349,13 @@ export default function CreateQuizPage() {
             </div>
           )}
         </div>
-      </div>
 
-      {questions.map((q, qIndex) => (
-        <div
-          key={qIndex}
-          className="bg-white border border-[#e4e6f0] rounded-2xl p-6 space-y-6 shadow-sm"
-        >
+        {/* Questions */}
+        {questions.map((q, qIndex) => (
+          <div
+            key={qIndex}
+            className="bg-white border border-[#e4e6f0] rounded-2xl p-6 space-y-6 shadow-sm"
+          >
           <div className="flex justify-between items-center">
             <h2 className="font-semibold">
               Question {qIndex + 1}
@@ -380,27 +486,54 @@ export default function CreateQuizPage() {
         </div>
       ))}
 
-      <div className="flex justify-between">
+      <div className="flex justify-between items-center">
+  
         <Button variant="outline" onClick={addQuestion}>
           <FontAwesomeIcon icon={faPlus} />
           Add Question
         </Button>
 
-        <Button
-          disabled={uploading}
-          className="bg-[#3749a9] text-white gap-2"
-          onClick={handleSubmit}
-        >
-          {uploading ? (
-            <>
-              <FontAwesomeIcon icon={faSpinner} spin />
-              Saving...
-            </>
-          ) : (
-            "Save Quiz"
+        <div className="flex gap-3">
+          
+          {editMode && (
+            <Button
+              variant="destructive"
+              disabled={deleting}
+              onClick={handleDeleteQuiz}
+            >
+              {deleting ? (
+                <>
+                  <FontAwesomeIcon icon={faSpinner} spin />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <FontAwesomeIcon icon={faTrash} />
+                  Delete Quiz
+                </>
+              )}
+            </Button>
           )}
-        </Button>
+
+          <Button
+            disabled={uploading}
+            className="bg-[#3749a9] text-white gap-2"
+            onClick={handleSubmit}
+          >
+            {uploading ? (
+              <>
+                <FontAwesomeIcon icon={faSpinner} spin />
+                Saving...
+              </>
+            ) : (
+              editMode ? "Update Quiz" : "Save Quiz"
+            )}
+          </Button>
+
+        </div>
       </div>
+      </>
+      )}
     </div>
   );
 }
