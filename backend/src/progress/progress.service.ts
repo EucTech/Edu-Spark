@@ -64,11 +64,8 @@ export class ProgressService {
       });
 
       if (pointsToAward > 0) {
-        await this.pointsService.addPoints(
-          studentId,
-          pointsToAward,
-          `Lesson Progress: ${lessonTitle} (${progress_percentage}%)`,
-        );
+        const source = `Lesson: ${lessonTitle} (${progress_percentage}%)`.slice(0, 50);
+        await this.pointsService.addPoints(studentId, pointsToAward, source);
       }
 
       return updated;
@@ -97,11 +94,8 @@ export class ProgressService {
     });
 
     if (pointsToAward > 0) {
-      await this.pointsService.addPoints(
-        studentId,
-        pointsToAward,
-        `Lesson Progress: ${lesson.title} (${progress_percentage}%)`,
-      );
+      const source = `Lesson: ${lesson.title} (${progress_percentage}%)`.slice(0, 50);
+      await this.pointsService.addPoints(studentId, pointsToAward, source);
     }
 
     return created;
@@ -137,11 +131,8 @@ export class ProgressService {
     });
 
     // Award points based on quiz score
-    await this.pointsService.addPoints(
-      studentId,
-      dto.score,
-      `Quiz Result: ${quiz.lesson.title}`,
-    );
+    const quizSource = `Quiz: ${quiz.lesson.title}`.slice(0, 50);
+    await this.pointsService.addPoints(studentId, dto.score, quizSource);
 
     // Notify student of their quiz score
     await this.notificationsService.create({
