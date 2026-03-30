@@ -143,15 +143,14 @@ export default function StudentDashboardPage() {
   const quizAttempts = progress?.quiz_attempts || [];
 
   const quizAverage =
-    quizAttempts.length > 0
-      ? Math.round(
-          quizAttempts.reduce(
-            (sum: number, q: any) => sum + q.score,
-            0
-          ) / quizAttempts.length
-        )
-      : 0;
-
+  quizAttempts.length > 0
+    ? Math.round(
+        quizAttempts.reduce(
+          (sum: number, q: any) => sum + Number(q.score),
+          0
+        ) / quizAttempts.length
+      )
+    : 0;
   //  leaderboard progress logic
   let progressToNextRank = 100;
   let pointsToNextRank = 0;
