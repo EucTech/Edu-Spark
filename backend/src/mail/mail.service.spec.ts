@@ -63,6 +63,9 @@ describe('MailService', () => {
     it('should not throw if sending fails (graceful error handling)', async () => {
       mockSendMail.mockRejectedValue(new Error('SMTP error'));
 
+      // Silence the expected error log during this test
+      jest.spyOn(service['logger'], 'error').mockImplementation(() => {});
+
       await expect(
         service.sendGuardianSessionAlert('bad@email.com', 'Name', 'Child', 5),
       ).resolves.not.toThrow();
