@@ -87,14 +87,44 @@ export default function AllQuizzesPage() {
         }
       );
 
-      if (!res.ok) {
+      const text = await res.text();
+      
+
+      // show warning if no quiz found for this lesson
+      if (!text) {
         setQuiz(null);
+
+        toast.warning(
+          "⚠ No quiz has been created for this lesson yet.",
+          { duration: 4000 }
+        );
+
         return;
       }
 
-      const data = await res.json();
+      const data = JSON.parse(text);
+
+      data.total_points = Number(data.total_points);
+      data.questions = data.questions.map((q: any) => ({
+        ...q,
+        points: Number(q.points),
+      }));
+
+      if (!data || !data.quiz_id) {
+        setQuiz(null);
+
+        toast.warning(
+          "⚠ No quiz has been created for this lesson yet.",
+          { duration: 4000 }
+        );
+
+        return;
+      }
+
       setQuiz(data);
-    } catch {
+
+    } catch (err) {
+      console.error(err);
       toast.error("Failed to load quiz");
     } finally {
       setLoadingQuiz(false);
@@ -261,7 +291,7 @@ export default function AllQuizzesPage() {
                 className="bg-[#3749a9] text-white"
                 onClick={() =>
                   router.push(
-                    `/admin-dashboard/quizzes/${quiz.quiz_id}/edit`
+                    `/admin-dashboard/lessons/${quiz.lesson_id}/quiz?edit=true&quizId=${quiz.quiz_id}`
                   )
                 }
               >
@@ -281,9 +311,30 @@ export default function AllQuizzesPage() {
           </div>
 
           <div className="text-xs text-[#9ba3c7]">
-            Created on{" "}
-            {new Date(quiz.created_at).toLocaleDateString("en-GB")}
-          </div>
+          Created on{" "}
+          {quiz.created_at
+            ? new Date(quiz.created_at).toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+              })
+            : "—"}
+        </div>
+        </div>
+      )}
+
+      {selectedLesson && (
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            onClick={() =>
+              router.push(
+                `/admin-dashboard/lessons/${selectedLesson}/quiz`
+              )
+            }
+          >
+            Set New Quiz
+          </Button>
         </div>
       )}
     </div>

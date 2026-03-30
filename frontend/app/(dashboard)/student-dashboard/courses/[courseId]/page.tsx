@@ -39,7 +39,7 @@ export default function StudentCourseDetailPage() {
   const [lessons, setLessons] = useState<any[]>([]);
   const [progress, setProgress] = useState<any>(null);
   const [activeLesson, setActiveLesson] = useState<any>(null);
-  const [quiz, setQuiz] = useState<any>(null);
+  const [quizzes, setQuizzes] = useState<any[]>([]);
 
   const [sections, setSections] = useState<any[]>([]);
   const [currentSection, setCurrentSection] = useState(0);
@@ -62,6 +62,8 @@ export default function StudentCourseDetailPage() {
   const intervalRef = React.useRef<any>(null);
   const milestoneRequestRef = React.useRef(false);
   const lastTimeRef = React.useRef(0);
+   const [selectedQuiz, setSelectedQuiz] = useState<any>(null);
+   const maxWatchedTimeRef = React.useRef(0);
 
 const saveMilestone = async (percentage: number) => {
   if (!activeLesson) return;
@@ -135,14 +137,6 @@ const saveMilestone = async (percentage: number) => {
   }
 };
 
-  useEffect(() => {
-    if (!lessonProgress) return;
-
-    if (lessonProgress.completed) {
-      setLessonCompleted(true);
-    }
-  }, [lessonProgress]);
-
   // fetching lessons and progress data
 
   useEffect(() => {
@@ -194,6 +188,7 @@ const saveMilestone = async (percentage: number) => {
     ) || null;
 
     setLessonProgress(existingLessonProgress);
+    setLessonCompleted(existingLessonProgress?.completed || false);
 
     setLoading(false);
   };
@@ -201,16 +196,49 @@ const saveMilestone = async (percentage: number) => {
   fetchData();
 }, [courseId]);
 
+  // useEffect(() => {
+  //   if (!activeLesson || !progress) return;
+
+  //   const existingLessonProgress =
+  //     progress?.completed_lessons?.find(
+  //       (l: any) => l.lesson_id === activeLesson.lesson_id
+  //     ) || null;
+
+  //   setLessonProgress(existingLessonProgress);
+  // }, [activeLesson, progress]);
+
   useEffect(() => {
-  if (!activeLesson || !progress) return;
+    const fetchQuizzes = async () => {
+      if (!activeLesson?.lesson_id) return;
+      setQuizzes([]);
 
-  const existingLessonProgress =
-    progress?.completed_lessons?.find(
-      (l: any) => l.lesson_id === activeLesson.lesson_id
-    ) || null;
+      try {
+        const token = localStorage.getItem("token");
 
-  setLessonProgress(existingLessonProgress);
-}, [activeLesson, progress]);
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/quizzes/lesson/${activeLesson.lesson_id}/all`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!res.ok) {
+          setQuizzes([]);
+          return;
+        }
+
+        const data = await res.json();
+        setQuizzes(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Failed to fetch quizzes:", error);
+        setQuizzes([]);
+      }
+    };
+
+    fetchQuizzes();
+  }, [activeLesson?.lesson_id]);
 
 const saveReadingMilestone = async (percentage: number) => {
   const lastRewarded =
@@ -264,7 +292,6 @@ const markLessonStarted = async () => {
     (l: any) => l.lesson_id === activeLesson.lesson_id
   );
 
-  // If lesson already has progress, do not send another request (prevents overwriting progress_percentage with 1)
   if (existing && existing.progress_percentage > 0) return;
 
   const token = localStorage.getItem("token");
@@ -288,7 +315,6 @@ const markLessonStarted = async () => {
 
   const updated = await res.json();
   setLessonProgress(updated);
-  setLocalMilestone(1);
 };
 
 useEffect(() => {
@@ -345,31 +371,44 @@ useEffect(() => {
   setLessonCompleted(lessonProgress?.completed || false);
 }, [activeLesson, lessonProgress]);
 
-// initial video milestone setup based on existing progress
-useEffect(() => {
-  if (!lessonProgress) return;
+  // initial video milestone setup based on existing progress
+  useEffect(() => {
+    if (!lessonProgress) return;
 
-  const rewarded = lessonProgress.last_rewarded_percentage ?? 0;
+    const rewarded = lessonProgress.last_rewarded_percentage ?? 0;
 
-  videoMilestoneRef.current = rewarded;
-}, [lessonProgress]);
+    videoMilestoneRef.current = rewarded;
+  }, [lessonProgress]);
 
-useEffect(() => {
+  useEffect(() => {
   if (!activeLesson) return;
   if (activeLesson.content_type !== "video") return;
-  if (!lessonProgress) return;
-  if (lessonProgress.completed) return;
+
+  // Reset tracking refs when switching lessons
+  videoMilestoneRef.current =
+  lessonProgress?.last_rewarded_percentage || 0;
+
+  lastTimeRef.current = 0;
+  maxWatchedTimeRef.current = 0;
+
+  if (ytPlayerRef.current) {
+    try {
+      ytPlayerRef.current.destroy();
+    } catch {}
+    ytPlayerRef.current = null;
+  }
+
+  if (intervalRef.current) {
+    clearInterval(intervalRef.current);
+    intervalRef.current = null;
+  }
+
+  if (playerRef.current) {
+    playerRef.current.innerHTML = "";
+  }
 
   const loadPlayer = () => {
-    if (!playerRef.current) return;
-
-    // prevent duplicate players
-    if (ytPlayerRef.current) {
-      try {
-        ytPlayerRef.current.destroy();
-      } catch {}
-      ytPlayerRef.current = null;
-    }
+    if (!playerRef.current || !(window as any).YT?.Player) return;
 
     ytPlayerRef.current = new (window as any).YT.Player(
       playerRef.current,
@@ -379,106 +418,109 @@ useEffect(() => {
           onReady: () => {
             const player = ytPlayerRef.current;
 
-            // Resume from saved progress
+            // Resume playback from saved progress
             const savedPercent = lessonProgress?.progress_percentage ?? 0;
 
             if (savedPercent > 1) {
               const waitForDuration = setInterval(() => {
                 const duration = player.getDuration();
-
                 if (duration && duration > 0) {
                   clearInterval(waitForDuration);
-
                   const seekToTime = (savedPercent / 100) * duration;
                   player.seekTo(seekToTime, true);
                 }
               }, 300);
             }
 
-            // clear previous interval if exists
+            // Clear previous interval
             if (intervalRef.current) {
               clearInterval(intervalRef.current);
-              intervalRef.current = null;
             }
 
-            intervalRef.current = setInterval(() => {
-              if (!player) return;
+           intervalRef.current = setInterval(() => {
+            if (!player) return;
 
-              const duration = player.getDuration();
-              const current = player.getCurrentTime();
+            const duration = player.getDuration();
+            const current = player.getCurrentTime();
+            const playerState = player.getPlayerState?.();
 
-              // Detect skip
-              if (lastTimeRef.current > 0) {
-                const jump = current - lastTimeRef.current;
+            if (!duration || playerState !== (window as any).YT.PlayerState.PLAYING) {
+              return;
+            }
 
-                if (jump > 3) {
-                  toast.error("⚠️ Skipping is not allowed. Please watch properly.");
-                  player.seekTo(lastTimeRef.current, true);
-                  return;
-                }
-              }
+            const percentWatched = (current / duration) * 100;
 
-              // update last watched time
-              lastTimeRef.current = current;
+            // Skip Protection 
+            if (lastTimeRef.current > 0) {
+              const jump = current - lastTimeRef.current;
 
-              if (!duration || current === undefined) return;
-
-              //Only track when actually playing
-              if (
-                !player.getPlayerState ||
-                player.getPlayerState() !==
-                  (window as any).YT.PlayerState.PLAYING
-              ) {
+              if (jump > 5 && current > maxWatchedTimeRef.current + 2) {
+                toast.error("⚠️ Skipping beyond watched progress is not allowed.");
+                player.seekTo(lastTimeRef.current, true);
                 return;
               }
+            }
 
-              const percentWatched = (current / duration) * 100;
+            //  update max watched
+            if (current > maxWatchedTimeRef.current) {
+              maxWatchedTimeRef.current = current;
+            }
 
-              // 1% start trigger
-              if (current > 1 && videoMilestoneRef.current < 1) {
-                saveMilestone(1);
+            lastTimeRef.current = current;
+
+            const milestones = [25, 50, 75, 100];
+            for (const m of milestones) {
+              if (
+                percentWatched >= m &&
+                videoMilestoneRef.current < m
+              ) {
+                saveMilestone(m);
+                break;
               }
+            }
 
-              const milestones = [25, 50, 75, 100];
-
-              for (const m of milestones) {
-                if (
-                  percentWatched >= m &&
-                  videoMilestoneRef.current < m
-                ) {
-                  saveMilestone(m);
-                  break;
-                }
-              }
-            }, 1000);
+          }, 1000);
           },
 
           onStateChange: (event: any) => {
-          const YT = (window as any).YT;
+            const YT = (window as any).YT;
+            if (!YT) return;
 
-          if (!YT) return;
-
-          // When video fully ends
-          if (event.data === YT.PlayerState.ENDED) {
-            if (videoMilestoneRef.current < 100) {
-              markLessonComplete();
+            if (
+              event.data === YT.PlayerState.PLAYING &&
+              videoMilestoneRef.current === 0
+            ) {
+              saveMilestone(1);
             }
-          }
-        },
 
+            if (event.data === YT.PlayerState.ENDED) {
+              if (videoMilestoneRef.current < 100) {
+                markLessonComplete();
+              }
+            }
+          },
         },
       }
     );
   };
 
-  if ((window as any).YT?.Player) {
-    loadPlayer();
-  } else {
+  // Load YouTube API only once
+  const initPlayer = () => {
+    if ((window as any).YT?.Player) {
+      loadPlayer();
+    } else {
+      setTimeout(initPlayer, 200);
+    }
+  };
+
+  if (!(window as any).YT) {
     const tag = document.createElement("script");
     tag.src = "https://www.youtube.com/iframe_api";
     document.body.appendChild(tag);
 
-    (window as any).onYouTubeIframeAPIReady = loadPlayer;
+    (window as any).onYouTubeIframeAPIReady = initPlayer;
+  } else {
+    initPlayer();
   }
 
   return () => {
@@ -494,7 +536,7 @@ useEffect(() => {
       ytPlayerRef.current = null;
     }
   };
-}, [activeLesson]); 
+}, [activeLesson?.lesson_id]);
 
   const markLessonComplete = async () => {
     const token = localStorage.getItem("token");
@@ -613,6 +655,18 @@ const nextSection = async () => {
         lessonProgress.progress_percentage
     );
     }
+  
+
+
+const quizAttemptsMap = new Map<string, any[]>();
+
+progress?.quiz_attempts?.forEach((attempt: any) => {
+  if (!quizAttemptsMap.has(attempt.quiz_id)) {
+    quizAttemptsMap.set(attempt.quiz_id, []);
+  }
+  quizAttemptsMap.get(attempt.quiz_id)?.push(attempt);
+});
+
 
   return (
     <div className="py-8 space-y-8">
@@ -665,7 +719,7 @@ const nextSection = async () => {
             </div>
 
         {activeLesson.content_type === "video" ? (
-          <div className="rounded-2xl overflow-hidden shadow-lg border border-[#e4e6f0]">
+          <div key={activeLesson.lesson_id} className="rounded-2xl overflow-hidden shadow-lg border border-[#e4e6f0]">
         <div ref={playerRef} className="w-full h-[450px]" />
         </div>
         ) : (
@@ -713,13 +767,84 @@ const nextSection = async () => {
         )}
 
         {/* Quiz Section */}
-        {lessonCompleted && quiz && (
-          <button
-            onClick={() => setShowQuizModal(true)}
-            className="mt-8 w-full py-3 bg-[#5b2d8a] text-white rounded-2xl font-semibold hover:opacity-90 transition"
-          >
-            Take Quiz
-          </button>
+        {!loading && progress && lessonCompleted && quizzes.length > 0 && (
+          <div className="mt-8 space-y-6">
+            {quizzes.map((quiz: any) => {
+              const attempts = quizAttemptsMap.get(quiz.quiz_id) || [];
+              const attemptCount = attempts.length;
+
+              const bestScore =
+                attemptCount > 0
+                  ? Math.max(...attempts.map((a: any) => Number(a.score)))
+                  : null;
+
+              const lastScore =
+                attemptCount > 0
+                  ? Number(attempts[attempts.length - 1].score)
+                  : null;
+
+              return (
+                <div
+                  key={quiz.quiz_id}
+                  className="bg-[#f3f5ff] border border-[#e4e6f0] rounded-3xl p-6 shadow-sm space-y-4"
+                >
+                  <h3 className="text-lg font-bold text-[#3749a9]">
+                    {quiz.title || "Lesson Quiz"}
+                  </h3>
+
+                  {attemptCount > 0 ? (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <div>
+                          <p className="text-gray-500">Best Score</p>
+                          <p className="font-bold text-xl text-[#1b9e5a]">
+                            {bestScore} / {quiz.total_points}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-gray-500">Last Attempt</p>
+                          <p className="font-semibold">
+                            {lastScore} / {quiz.total_points}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-gray-500">Attempts</p>
+                          <p className="font-semibold">{attemptCount}</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-white p-4 rounded-2xl text-center border border-[#e4e6f0]">
+                        <p className="text-sm text-[#3749a9] font-semibold">
+                          🚀 Think you can beat your best score?
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setSelectedQuiz(quiz);
+                          setShowQuizModal(true);
+                        }}
+                        className="w-full py-3 bg-[#5b2d8a] text-white rounded-2xl font-semibold hover:opacity-90 transition"
+                      >
+                        Retake Quiz
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() =>
+                        router.push(`/student-dashboard/quiz/${quiz.quiz_id}`)
+                      }
+                      className="w-full py-3 bg-[#5b2d8a] text-white rounded-2xl font-semibold hover:opacity-90 transition"
+                    >
+                      Take Quiz
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
 
@@ -737,7 +862,16 @@ const nextSection = async () => {
             return (
               <div
                 key={lesson.lesson_id}
-                onClick={() => setActiveLesson(lesson)}
+                onClick={() => {
+                  setActiveLesson(lesson);
+
+                  const existing = progress?.completed_lessons?.find(
+                    (l: any) => l.lesson_id === lesson.lesson_id
+                  ) || null;
+
+                  setLessonProgress(existing);
+                  setLessonCompleted(existing?.completed || false);
+                }}
                 className={`group relative rounded-2xl border p-5 cursor-pointer transition-all duration-300
                     ${
                     activeLesson.lesson_id === lesson.lesson_id
@@ -817,7 +951,7 @@ const nextSection = async () => {
       </div>
 
       {/* Modal for the quiz */}
-      {showQuizModal && (
+      {showQuizModal && selectedQuiz && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-3xl p-8 w-[400px] relative">
             <button
@@ -826,16 +960,22 @@ const nextSection = async () => {
             >
               <LuX />
             </button>
-            <h3 className="text-xl font-bold mb-4">
-              Ready for the Quiz?
+
+            <h3 className="text-xl font-bold mb-2">
+              {selectedQuiz.title || "Lesson Quiz"}
             </h3>
+
+            <p className="text-sm text-gray-500 mb-6">
+              Total Points: {selectedQuiz.total_points}
+            </p>
+
             <button
               onClick={() =>
                 router.push(
-                  `/student-dashboard/quiz/${quiz.quiz_id}`
+                  `/student-dashboard/quiz/${selectedQuiz.quiz_id}`
                 )
               }
-              className="w-full py-3 bg-[#3749a9] text-white rounded-xl"
+              className="w-full py-3 bg-[#3749a9] text-white rounded-xl font-semibold hover:opacity-90 transition"
             >
               Start Quiz
             </button>
