@@ -146,7 +146,7 @@ export default function StudentDashboardPage() {
     quizAttempts.length > 0
       ? Math.round(
           quizAttempts.reduce(
-            (sum: number, q: any) => sum + q.score,
+            (sum: number, q: any) => sum + Number(q.score),
             0
           ) / quizAttempts.length
         )
